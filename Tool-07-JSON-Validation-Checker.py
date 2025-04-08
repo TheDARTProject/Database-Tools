@@ -21,7 +21,7 @@ def validate_json(file_name):
 
 
 # Specify the filename here
-file_name = '../Compromised-Discord-Accounts.json'
+file_name = '../Database-Files/Edit-Database/Compromised-Discord-Accounts.json'
 
 # Validate the JSON file
 validate_json(file_name)

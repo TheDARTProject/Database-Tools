@@ -29,7 +29,7 @@ env_vars = load_env()
 PROXY_URL = env_vars.get("PROXY_URL", "https://api.codetabs.com/v1/proxy/?quest=")
 RATE_LIMIT = int(env_vars.get("DISCORD_INVITE_RATE_LIMIT", 20))
 JSON_FILE_PATH = os.path.join(
-    os.path.dirname(__file__), "../Compromised-Discord-Accounts.json"
+    os.path.dirname(__file__), "../Database-Files/Edit-Database/Compromised-Discord-Accounts.json"
 )
 PRINT_RESPONSE = True  # Set to True to see full API responses
 

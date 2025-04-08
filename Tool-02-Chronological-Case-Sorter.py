@@ -10,7 +10,7 @@ def log(message):
 # Load existing data from the JSON file
 log("Loading JSON data...")
 try:
-    with open("../Compromised-Discord-Accounts.json", "r", encoding="utf-8") as file:
+    with open("../Database-Files/Edit-Database/Compromised-Discord-Accounts.json", "r", encoding="utf-8") as file:
         data = json.load(file)
 except FileNotFoundError:
     log("JSON file not found. Exiting.")

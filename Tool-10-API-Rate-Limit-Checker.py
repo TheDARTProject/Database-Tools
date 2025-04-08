@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 
 # Load the .env file from the parent directory
-load_dotenv("../.env")
+load_dotenv(".env")
 
 # Get the token from the .env file
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")

@@ -12,8 +12,8 @@ def log(message):
 
 def main():
     # File paths
-    excel_path = "../ExporterSheet.xlsx"
-    json_path = "../Compromised-Discord-Accounts.json"
+    excel_path = "../Database-Files/Excel-Import-Export/ExporterSheet.xlsx"
+    json_path = "../Database-Files/Edit-Database/Compromised-Discord-Accounts.json"
 
     # Open the Excel file
     log(f"Loading Excel file from {excel_path}...")

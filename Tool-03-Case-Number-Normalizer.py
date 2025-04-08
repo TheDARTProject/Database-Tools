@@ -56,4 +56,4 @@ def fix_account_numbers(file_path):
 
 
 # Run the function on the JSON file
-fix_account_numbers("../Compromised-Discord-Accounts.json")
+fix_account_numbers("../Database-Files/Edit-Database/Compromised-Discord-Accounts.json")

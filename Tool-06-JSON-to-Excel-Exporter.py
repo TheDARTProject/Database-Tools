@@ -14,7 +14,7 @@ def json_to_excel():
     log("Loading JSON data...")
     try:
         with open(
-            "../Compromised-Discord-Accounts.json", "r", encoding="utf-8"
+            "../Database-Files/Edit-Database/Compromised-Discord-Accounts.json", "r", encoding="utf-8"
         ) as file:
             data = json.load(file)
     except FileNotFoundError:
@@ -67,7 +67,7 @@ def json_to_excel():
         worksheet.append(row)
 
     # Save the workbook
-    output_path = "../ExporterSheet_Converted.xlsx"
+    output_path = "../Database-Files/Excel-Import-Export/ExporterSheet_Converted.xlsx"
     workbook.save(output_path)
     log(f"Excel file saved to {output_path}")
     log(f"Total accounts converted: {len(data)}")

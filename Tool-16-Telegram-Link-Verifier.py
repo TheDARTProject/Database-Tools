@@ -43,7 +43,7 @@ def main():
     print("\nLoading JSON file...")
     try:
         with open(
-            "../Compromised-Discord-Accounts.json", "r", encoding="utf-8"
+            "../Database-Files/Edit-Database/Compromised-Discord-Accounts.json", "r", encoding="utf-8"
         ) as file:
             data = json.load(file)
         print(f"Successfully loaded {len(data)} accounts.")
@@ -80,7 +80,7 @@ def main():
     print_header("saving results")
     try:
         with open(
-            "../Compromised-Discord-Accounts.json", "w", encoding="utf-8"
+            "../Database-Files/Edit-Database/Compromised-Discord-Accounts.json", "w", encoding="utf-8"
         ) as file:
             json.dump(data, file, indent=4)
         print(f"\nSuccessfully saved results for {checked_count} accounts.")

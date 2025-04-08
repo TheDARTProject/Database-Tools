@@ -35,4 +35,4 @@ def process_json(json_file, output_file):
 
 
 if __name__ == "__main__":
-    process_json("../Compromised-Discord-Accounts.json", "../inspection.txt")
+    process_json("../Database-Files/Edit-Database/Compromised-Discord-Accounts.json", "../inspection.txt")

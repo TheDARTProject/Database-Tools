@@ -42,7 +42,7 @@ def load_json_file(file_path):
 
 
 def main():
-    file_path = "../Compromised-Discord-Accounts.json"
+    file_path = "../Database-Files/Edit-Database/Compromised-Discord-Accounts.json"
     data = load_json_file(file_path)
     log_message(f"Found {len(data)} accounts in the JSON file.")
 

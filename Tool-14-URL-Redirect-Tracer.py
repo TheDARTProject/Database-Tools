@@ -712,40 +712,55 @@ def process_batch(batch, excluded_domains, proxy_rotator, rate_limiter, results)
 
 # Save progress
 def save_data(data, filename, backup=False):
-    """
-    Save data to a JSON file with proper error handling.
-    Backup and recovered files are stored in a 'backup' folder in the script's directory.
-    """
-    global target_file, backup_dir
+    target_file = None
+    base_dir = None
+    alternative_dir = None
+
     try:
-        # Define the backup folder path
+        # Define the base directory first
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        backup_dir = os.path.join(script_dir, "backup")
+        base_dir = os.path.normpath(os.path.join(script_dir, "../Database-Files"))
 
-        # Ensure the backup directory exists
-        os.makedirs(backup_dir, exist_ok=True)
+        # Set target and alternative directories
+        if backup:
+            target_dir = os.path.join(base_dir, "Backup-Database")
+            alternative_dir = os.path.join(base_dir, "Recovery-Database")
+        else:
+            target_dir = os.path.join(base_dir, "Recovery-Database")
+            alternative_dir = os.path.join(base_dir, "Backup-Database")
 
-        # Set target file paths
-        suffix = "-Backup" if backup else ""
-        target_file = os.path.join(backup_dir, f"{filename}{suffix}.json")
+        # Ensure the target directory exists
+        os.makedirs(target_dir, exist_ok=True)
+
+        # Set target file path
+        target_file = os.path.join(target_dir, f"{filename}.json")
 
         logger.info(f"Saving data to {target_file}...")
         with open(target_file, "w", encoding="utf-8") as file:
             json.dump(data, file, indent=4)
         logger.info("Data successfully saved")
         return True
-    except Exception as ex:
-        logger.error(f"Error saving data to {target_file}: {ex}")
 
-        # Attempt to save to a recovery file
-        recovery_file = os.path.join(backup_dir, f"{filename}.recovered.json")
-        try:
-            with open(recovery_file, "w", encoding="utf-8") as file:
-                json.dump(data, file, indent=4)
-            logger.info(f"Data saved to recovery file: {recovery_file}")
-            return True
-        except Exception as e2:
-            logger.critical(f"Failed to save recovery data: {e2}")
+    except Exception as ex:
+        error_message = f"Error saving data: {ex}"
+        if target_file:
+            error_message = f"Error saving data to {target_file}: {ex}"
+        logger.error(error_message)
+
+        # Attempt to save to alternative directory if primary save failed
+        if base_dir and alternative_dir:
+            try:
+                os.makedirs(alternative_dir, exist_ok=True)
+                alternative_file = os.path.join(alternative_dir, f"{filename}.json")
+                with open(alternative_file, "w", encoding="utf-8") as file:
+                    json.dump(data, file, indent=4)
+                logger.info(f"Data saved to alternative location: {alternative_file}")
+                return True
+            except Exception as e2:
+                logger.critical(f"Failed to save recovery data: {e2}")
+                return False
+        else:
+            logger.critical("Critical directory path configuration error")
             return False
 
 
@@ -774,15 +789,19 @@ def process_compromised_accounts(max_workers=10, batch_size=20, max_accounts=Non
     # Initialize the rate limiter
     rate_limiter = SmartRateLimiter()
 
+    # Define the main data directory path
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.normpath(os.path.join(script_dir, "../Database-Files/Edit-Database/"))
+    os.makedirs(data_dir, exist_ok=True)
+
     # Load the compromised Discord accounts data
-    logger.info("Loading compromised Discord accounts from JSON file...")
+    data_file = os.path.join(data_dir, "Compromised-Discord-Accounts.json")
+    logger.info(f"Loading compromised Discord accounts from {data_file}...")
     try:
-        with open(
-            "../Compromised-Discord-Accounts.json", "r", encoding="utf-8"
-        ) as file:
+        with open(data_file, "r", encoding="utf-8") as file:
             data = json.load(file)
     except FileNotFoundError:
-        logger.error("Error: Compromised-Discord-Accounts.json file not found")
+        logger.error(f"Error: {data_file} not found")
         return
     except json.JSONDecodeError as ex:
         logger.error(f"Error: Invalid JSON in data file: {ex}")

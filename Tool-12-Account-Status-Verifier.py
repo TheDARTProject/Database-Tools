@@ -85,7 +85,7 @@ def load_json_file(file_path):
 
 
 def main():
-    file_path = "../Compromised-Discord-Accounts.json"
+    file_path = "../Database-Files/Edit-Database/Compromised-Discord-Accounts.json"
 
     try:
         data = load_json_file(file_path)

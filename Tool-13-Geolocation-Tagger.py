@@ -7,12 +7,12 @@ from datetime import datetime
 import socket
 
 # Load API key and rate limit from .env file
-load_dotenv("../.env")
+load_dotenv(".env")
 API_KEY = os.getenv("IPINFO_API_TOKEN")
 RATE_LIMIT = int(os.getenv("IPINFO_RATE_LIMIT", 60))  # Default to 60 if not specified
 
 # Define the input file
-INPUT_FILE = "../Compromised-Discord-Accounts.json"
+INPUT_FILE = "../Database-Files/Edit-Database/Compromised-Discord-Accounts.json"
 IPINFO_URL = "https://ipinfo.io/"
 
 # Domains that should be automatically set to US

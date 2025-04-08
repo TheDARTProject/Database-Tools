@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 
 # Load environment variables
-load_dotenv("../.env")
+load_dotenv(".env")
 
 URLSCAN_API_KEY = os.getenv("URLSCAN_API_TOKEN")
 if not URLSCAN_API_KEY:
@@ -21,7 +21,7 @@ URLSCAN_RESULT_URL = "https://urlscan.io/api/v1/result/"
 HEADERS = {"API-Key": URLSCAN_API_KEY, "Content-Type": "application/json"}
 
 # Load the JSON data
-json_path = "../Compromised-Discord-Accounts.json"
+json_path = "../Database-Files/Edit-Database/Compromised-Discord-Accounts.json"
 
 with open(json_path, "r", encoding="utf-8") as file:
     data = json.load(file)

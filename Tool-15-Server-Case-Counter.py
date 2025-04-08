@@ -1,7 +1,7 @@
 import json
 
 # Load the JSON data from the file
-with open('../Compromised-Discord-Accounts.json', 'r') as file:
+with open('../Database-Files/Edit-Database/Compromised-Discord-Accounts.json', 'r') as file:
     data = json.load(file)
 
 # Create a dictionary to store the server counts

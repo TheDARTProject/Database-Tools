@@ -8,7 +8,7 @@ from urllib.parse import urlparse, parse_qs
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-load_dotenv("../.env")
+load_dotenv(".env")
 
 # Get environment variables
 DISCORD_INVITE_RATE_LIMIT = int(os.getenv("DISCORD_INVITE_RATE_LIMIT", "20"))
@@ -17,8 +17,8 @@ DISCORD_TOKEN = os.getenv("DISCORD_TOKEN", "")
 CLIENT_ID = os.getenv("CLIENT_ID", "")
 
 # File paths
-COMPROMISED_ACCOUNTS_FILE = "../Compromised-Discord-Accounts.json"
-ACTIVE_SERVERS_FILE = "../Active-Discord-Servers.json"
+COMPROMISED_ACCOUNTS_FILE = "../Database-Files/Edit-Database/Compromised-Discord-Accounts.json"
+ACTIVE_SERVERS_FILE = "../Database-Files/Edit-Database/Active-Discord-Servers.json"
 
 # Discord Epoch (2015-01-01T00:00:00.000Z)
 DISCORD_EPOCH = 1420070400000

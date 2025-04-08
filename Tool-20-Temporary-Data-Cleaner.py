@@ -1,7 +1,7 @@
 import json
 
 # Load the JSON data from a file
-with open('../Compromised-Discord-Accounts.json', 'r') as file:
+with open('../Database-Files/Edit-Database/Compromised-Discord-Accounts.json', 'r') as file:
     data = json.load(file)
 
 # Iterate over each key in the dictionary
@@ -12,7 +12,7 @@ for key, value in data.items():
         del value["ACCOUNT_NUMBER_"]
 
 # Save the modified data back to a new file
-with open('../Compromised-Discord-Accounts.json', 'w') as file:
+with open('../Database-Files/Edit-Database/Compromised-Discord-Accounts.json', 'w') as file:
     json.dump(data, file, indent=4)
 
 print("The 'ACCOUNT_NUMBER_' fields have been removed from each case.")
