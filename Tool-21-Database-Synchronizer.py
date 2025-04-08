@@ -6,7 +6,7 @@ import os
 def load_json_file(file_path):
     """Load and return JSON data from the specified file."""
     try:
-        with open(file_path, 'r') as file:
+        with open(file_path, "r") as file:
             return json.load(file)
     except FileNotFoundError:
         print(f"Warning: File not found - {file_path}")
@@ -21,8 +21,8 @@ def save_json_file(file_path, data):
     # Ensure directory exists
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-    with open(file_path, 'w') as file:
-        json.dump(data, file, indent=2)
+    with open(file_path, "w") as file:
+        json.dump(data, file, indent=4)
     print(f"Updated: {file_path}")
 
 
@@ -33,13 +33,13 @@ def sync_files():
         "../Database-Files/Edit-Database/Active-Discord-Servers.json": [
             "../Database-Files/Main-Database/Active-Discord-Servers.json",
             "../Database-Files/Recovery-Database/Active-Discord-Servers.json",
-            "../Database-Files/Backup-Database/Active-Discord-Servers.json"
+            "../Database-Files/Backup-Database/Active-Discord-Servers.json",
         ],
         "../Database-Files/Edit-Database/Compromised-Discord-Accounts.json": [
             "../Database-Files/Main-Database/Compromised-Discord-Accounts.json",
             "../Database-Files/Recovery-Database/Compromised-Discord-Accounts.json",
-            "../Database-Files/Backup-Database/Compromised-Discord-Accounts.json"
-        ]
+            "../Database-Files/Backup-Database/Compromised-Discord-Accounts.json",
+        ],
     }
 
     # Synchronize each source file to destination files
