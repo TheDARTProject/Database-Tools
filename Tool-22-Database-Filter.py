@@ -47,8 +47,8 @@ def process_database():
         "../Database-Files/Edit-Database/Compromised-Discord-Accounts.json"
     )
     output_dir = Path("../Database-Files/Filter-Database")
-    discord_ids_file = output_dir / "discord-ids.json"
-    urls_file = output_dir / "final-urls.json"
+    discord_ids_file = output_dir / "Discord-IDs.json"
+    urls_file = output_dir / "Final-URLs.json"
     discord_servers_file = output_dir / "Discord-Servers.json"
 
     print(f"\nInput file: {input_file}")
