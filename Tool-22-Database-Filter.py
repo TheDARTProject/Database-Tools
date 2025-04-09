@@ -30,11 +30,36 @@ def determine_account_type(account_type):
         return "USER"  # Default to USER for any unknown types
 
 
+def is_valid_url(url):
+    """Check if the URL is valid and not a placeholder like 'No URL Detected'."""
+    if not url or not isinstance(url, str):
+        return False
+
+    # Filter out common placeholder values
+    invalid_values = [
+        "no url detected",
+        "no url sent",
+        "none",
+        "n/a",
+        "null",
+        "undefined",
+    ]
+
+    if url.lower().strip() in invalid_values:
+        return False
+
+    # Basic URL validation - check for domain structure
+    # This simple check ensures the URL has at least something.domain format
+    has_domain_structure = (
+        re.search(r"[a-zA-Z0-9][\w.-]*\.[a-zA-Z]{2,}", url) is not None
+    )
+
+    return has_domain_structure
+
+
 def is_discord_url(url):
     """Check if the URL is a Discord server URL."""
-    return (
-        url and isinstance(url, str) and ("discord.gg" in url or "discord.com" in url)
-    )
+    return is_valid_url(url) and ("discord.gg" in url or "discord.com" in url)
 
 
 def process_database():
@@ -48,7 +73,7 @@ def process_database():
     )
     output_dir = Path("../Database-Files/Filter-Database")
     discord_ids_file = output_dir / "Discord-IDs.json"
-    urls_file = output_dir / "Final-URLs.json"
+    urls_file = output_dir / "Malicious-URLs.json"
     discord_servers_file = output_dir / "Discord-Servers.json"
 
     print(f"\nInput file: {input_file}")
@@ -65,6 +90,7 @@ def process_database():
     new_discord_ids = 0
     new_urls = 0
     new_discord_servers = 0
+    invalid_urls_skipped = 0
 
     # Load existing data if files exist
     discord_ids_data = {}
@@ -109,6 +135,25 @@ def process_database():
             f"No existing Discord servers file found, will create new file: {discord_servers_file}"
         )
 
+    # Clean existing data - remove any invalid URLs that might have been previously added
+    urls_before_cleaning = len(urls_data)
+    discord_servers_before_cleaning = len(discord_servers_data)
+
+    urls_data = {url: data for url, data in urls_data.items() if is_valid_url(url)}
+    discord_servers_data = {
+        url: data for url, data in discord_servers_data.items() if is_valid_url(url)
+    }
+
+    cleaned_urls = urls_before_cleaning - len(urls_data)
+    cleaned_discord_servers = discord_servers_before_cleaning - len(
+        discord_servers_data
+    )
+
+    if cleaned_urls > 0 or cleaned_discord_servers > 0:
+        print(
+            f"\nCleaned up {cleaned_urls} invalid URLs and {cleaned_discord_servers} invalid Discord server URLs from existing data"
+        )
+
     # Read and process the main database
     try:
         print(f"\nReading input database from {input_file}...")
@@ -119,14 +164,12 @@ def process_database():
         print(f"ERROR: Could not read input file: {e}")
         return
 
-    print("\nProcessing accounts data...")
+    print("\nProcessing database...")
     processed_count = 0
 
     # Process each account
     for account_key, account_info in accounts_data.items():
         processed_count += 1
-        if processed_count % 100 == 0:  # Log progress every 100 accounts
-            print(f"Processing account {processed_count}/{len(accounts_data)}...")
 
         # Process Discord IDs
         discord_id = account_info.get("DISCORD_ID")
@@ -152,7 +195,11 @@ def process_database():
         # Process URLs
         final_url = account_info.get("FINAL_URL")
 
-        if final_url and final_url != "":
+        if final_url:
+            if not is_valid_url(final_url):
+                invalid_urls_skipped += 1
+                continue
+
             found_date = convert_date_to_epoch(account_info.get("FOUND_ON", ""))
 
             # Check if it's a Discord server URL
@@ -172,7 +219,7 @@ def process_database():
 
         # Also check SURFACE_URL for Discord links
         surface_url = account_info.get("SURFACE_URL")
-        if surface_url and surface_url != "" and is_discord_url(surface_url):
+        if surface_url and is_valid_url(surface_url) and is_discord_url(surface_url):
             if surface_url not in discord_servers_data:
                 found_date = convert_date_to_epoch(account_info.get("FOUND_ON", ""))
                 discord_servers_data[surface_url] = {"FOUND_ON": found_date}
@@ -186,6 +233,7 @@ def process_database():
     print(f"Found {new_discord_ids} new Discord IDs")
     print(f"Found {new_urls} new URLs")
     print(f"Found {new_discord_servers} new Discord server URLs")
+    print(f"Skipped {invalid_urls_skipped} invalid URLs")
 
     # Write the updated data to files
     print("\nWriting updated data to output files...")
@@ -211,6 +259,7 @@ def process_database():
     print(
         f"Total Discord servers: {len(discord_servers_data)} ({new_discord_servers} new)"
     )
+    print(f"Total invalid URLs skipped: {invalid_urls_skipped}")
     print("=" * 80 + "\n")
 
 
