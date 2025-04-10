@@ -121,8 +121,8 @@ if __name__ == "__main__":
         "Discord Servers": count_entries_from_file(
             "../Database-Files/Filter-Database/Discord-Servers.json"
         ),
-        "Global URLs": count_entries_from_file(
-            "../Database-Files/Filter-Database/Global-URLs.json"
+        "Global Domains": count_entries_from_file(
+            "../Database-Files/Filter-Database/Global-Domains.json"
         ),
     }
 
