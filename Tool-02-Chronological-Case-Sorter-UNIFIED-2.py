@@ -45,7 +45,7 @@ log(f"Unknown dates: {unknown_dates}")
 
 # Write the sorted data back to the JSON file
 log("Saving sorted JSON data...")
-with open("../Compromised-Discord-Accounts.json", "w", encoding="utf-8") as file:
+with open("../Database-Files/Edit-Database/Compromised-Discord-Accounts.json", "w", encoding="utf-8") as file:
     json.dump(sorted_data, file, indent=4, ensure_ascii=False)
 
 log("Sorting complete.")
