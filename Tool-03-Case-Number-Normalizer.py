@@ -25,15 +25,16 @@ def fix_account_numbers(file_path):
     updated_count = 0
     updated_data = {}
 
-    # Iterate through the accounts and update both the keys and the ACCOUNT_NUMBER_
+    # Iterate through the accounts and update both the keys and the CASE_NUMBER
     for index, (old_key, account) in enumerate(data.items(), start=1):
         # Generate the new key (e.g., ACCOUNT_NUMBER_1, ACCOUNT_NUMBER_2, etc.)
         new_key = f"ACCOUNT_NUMBER_{index}"
 
-        # Update the 'ACCOUNT_NUMBER_' field inside the account data
-        account["ACCOUNT_NUMBER_"] = str(index)
+        # Remove the 'ACCOUNT_NUMBER_' field if it exists
+        if "ACCOUNT_NUMBER_" in account:
+            del account["ACCOUNT_NUMBER_"]
 
-        # Update the 'CASE_NUMBER' field as well
+        # Update the 'CASE_NUMBER' field
         if account["CASE_NUMBER"] != str(index):  # If the CASE_NUMBER is incorrect
             updated_count += 1
         account["CASE_NUMBER"] = str(index)
