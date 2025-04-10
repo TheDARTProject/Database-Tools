@@ -3,11 +3,16 @@ import json
 import requests
 import time
 from datetime import datetime
+from urllib.parse import urlparse
+from dotenv import load_dotenv
 
 # Configuration
 OUTPUT_DIR = "../Database-Files/Filter-Database/"
-OUTPUT_FILE = "Global-URLs.json"
+OUTPUT_FILE = "Global-Domains.json"
 OUTPUT_PATH = os.path.join(OUTPUT_DIR, OUTPUT_FILE)
+load_dotenv()
+
+EXCLUDED_DOMAINS = os.getenv("EXCLUDED_DOMAINS", "").split(",")
 
 # Sources
 SOURCES = [
@@ -67,6 +72,9 @@ def fetch_data(source):
                         url = account_data[field]
                         # Filter out excluded values
                         if url and url not in source["exclude_values"]:
+                            # Strip 'http://' or 'https://' from URLs for DART Project
+                            if source["name"] == "DART Project":
+                                url = url.replace("https://", "").replace("http://", "")
                             extracted_urls.append(url)
             print(f"[+] Extracted {len(extracted_urls)} URLs from {source['name']}")
             return extracted_urls
@@ -102,6 +110,42 @@ def save_urls(urls):
     print(f"[+] Saved {len(urls)} URLs to {OUTPUT_PATH}")
 
 
+def is_url_excluded(url):
+    """Check if the URL contains any excluded domain."""
+    domain = urlparse(url).netloc
+    for excluded_domain in EXCLUDED_DOMAINS:
+        if excluded_domain in domain:
+            return True
+    return False
+
+
+def get_base_domain(url):
+    """Extract the base domain from a URL (without www or subdomains)."""
+    try:
+        # Handle cases where URL might not have scheme
+        if not url.startswith(("http://", "https://")):
+            url = "http://" + url
+
+        parsed = urlparse(url)
+        domain_parts = parsed.netloc.split(".")
+
+        # Handle cases like 'example.com' or 'www.example.com'
+        if len(domain_parts) > 2:
+            # For subdomains, we take the last two parts (e.g., 'example.com' from 'sub.example.com')
+            base_domain = ".".join(domain_parts[-2:])
+        else:
+            base_domain = parsed.netloc
+
+        # Remove www. if present
+        if base_domain.startswith("www."):
+            base_domain = base_domain[4:]
+
+        return base_domain.lower()
+    except:
+        # Fallback for malformed URLs
+        return url.lower()
+
+
 def main():
     """Main function to fetch and process URLs."""
     start_time = time.time()
@@ -117,12 +161,16 @@ def main():
     existing_count = len(existing_urls)
     print(f"[+] Found {existing_count} existing URLs")
 
-    # Create a set for faster lookups and to ensure uniqueness
-    url_set = set(existing_urls)
+    # Create a set of base domains for existing URLs
+    existing_base_domains = {get_base_domain(url) for url in existing_urls}
 
-    # Fetch and process each source
+    # Initialize counters
     total_new_urls = 0
+    total_skipped_urls = 0
     source_stats = {}
+
+    # We'll store both the full URL and its base domain to maintain uniqueness
+    url_dict = {url: get_base_domain(url) for url in existing_urls}
 
     for source in SOURCES:
         source_data = fetch_data(source)
@@ -134,16 +182,27 @@ def main():
         # Count new URLs from this source
         new_from_source = 0
         for url in source_data:
-            if url not in url_set:
-                url_set.add(url)
+            # Skip excluded URLs
+            if is_url_excluded(url):
+                total_skipped_urls += 1
+                continue
+
+            base_domain = get_base_domain(url)
+
+            # Check if this base domain already exists
+            if base_domain not in existing_base_domains:
+                # Add the simplest form of the URL (just domain)
+                simple_url = base_domain
+                url_dict[simple_url] = base_domain
+                existing_base_domains.add(base_domain)
                 new_from_source += 1
 
         total_new_urls += new_from_source
         source_stats[source["name"]] = new_from_source
         print(f"[+] Added {new_from_source} new URLs from {source['name']}")
 
-    # Convert set back to sorted list for saving
-    all_urls = sorted(list(url_set))
+    # Convert to sorted list of just the domains (no paths)
+    all_urls = sorted({k for k, v in url_dict.items()})
 
     # Save results
     save_urls(all_urls)
@@ -155,6 +214,7 @@ def main():
     print(f"    - Starting URLs: {existing_count}")
     print(f"    - New URLs added: {total_new_urls}")
     print(f"    - Total unique URLs: {len(all_urls)}")
+    print(f"    - Total URLs skipped/excluded: {total_skipped_urls}")
 
     # Print breakdown by source
     print(f"[+] New URLs by source:")
