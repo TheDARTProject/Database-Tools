@@ -29,7 +29,8 @@ env_vars = load_env()
 PROXY_URL = env_vars.get("PROXY_URL", "https://api.codetabs.com/v1/proxy/?quest=")
 RATE_LIMIT = int(env_vars.get("DISCORD_INVITE_RATE_LIMIT", 20))
 JSON_FILE_PATH = os.path.join(
-    os.path.dirname(__file__), "../Database-Files/Edit-Database/Compromised-Discord-Accounts.json"
+    os.path.dirname(__file__),
+    "../Database-Files/Edit-Database/Compromised-Discord-Accounts.json",
 )
 PRINT_RESPONSE = True  # Set to True to see full API responses
 
@@ -130,26 +131,23 @@ def process_accounts():
         print("No accounts found in the JSON file.")
         return
 
-    # Get user's choice for scanning
     start_index = get_starting_point(total_accounts)
 
     processed = 0
     updated_accounts = 0
     skipped_accounts = 0
 
-    # Calculate delay between requests to evenly distribute them
-    if RATE_LIMIT > 0:
-        request_delay = 60.0 / RATE_LIMIT  # Spread requests evenly over a minute
-    else:
-        request_delay = 0
+    request_delay = 60.0 / RATE_LIMIT if RATE_LIMIT > 0 else 0
 
     print(f"\nStarting processing of accounts...")
     print(f"Starting from account number: {start_index + 1}")
     print(f"Rate limit configured: {RATE_LIMIT} requests/minute")
     print(f"Request delay: {request_delay:.2f} seconds between requests")
 
-    # Convert dict to list of items for easier slicing
     accounts_items = list(data.items())
+
+    # Cache for already checked invites
+    checked_invites = {}
 
     for i in range(start_index, total_accounts):
         account_id, account_data = accounts_items[i]
@@ -157,7 +155,6 @@ def process_accounts():
         surface_url = account_data.get("SURFACE_URL", "")
         surface_domain = account_data.get("SURFACE_URL_DOMAIN", "")
 
-        # Skip if not a Discord invite URL
         if not (
             surface_domain in ["discord.gg", "discord.com"]
             and surface_url.startswith(("http://", "https://"))
@@ -180,11 +177,24 @@ def process_accounts():
             f"[{i+1}/{total_accounts}] Processing {account_id}: Checking invite {invite_code}"
         )
 
-        # Check invite status
-        start_time = time.time()
-        is_active, final_url = check_invite(invite_code)
+        # Check if invite was already checked
+        if invite_code in checked_invites:
+            is_active, final_url = checked_invites[invite_code]
+            print(f"Invite {invite_code} already checked. Using cached result.")
+        else:
+            start_time = time.time()
+            is_active, final_url = check_invite(invite_code)
+            checked_invites[invite_code] = (is_active, final_url)
 
-        # Update account data
+            # Adjust delay to respect rate limit
+            request_time = time.time() - start_time
+            remaining_delay = max(0, request_delay - request_time)
+            if remaining_delay > 0:
+                print(
+                    f"Waiting {remaining_delay:.2f} seconds to maintain rate limit..."
+                )
+                time.sleep(remaining_delay)
+
         status = "ACTIVE" if is_active else "INACTIVE"
         account_data["SURFACE_URL_STATUS"] = status
         account_data["FINAL_URL"] = final_url
@@ -195,20 +205,12 @@ def process_accounts():
         updated_accounts += 1
         print(f"Updated {account_id}: Status = {status}")
 
-        # Write changes after each check to prevent data loss
         try:
             with open(JSON_FILE_PATH, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=4, ensure_ascii=False)
             print("Changes saved to file")
         except Exception as e:
             print(f"Error saving changes to file: {str(e)}")
-
-        # Calculate time taken for the request and adjust delay
-        request_time = time.time() - start_time
-        remaining_delay = max(0, request_delay - request_time)
-        if remaining_delay > 0:
-            print(f"Waiting {remaining_delay:.2f} seconds to maintain rate limit...")
-            time.sleep(remaining_delay)
 
     print(f"\nProcessing complete!")
     print(f"Total accounts: {total_accounts}")
