@@ -51,7 +51,7 @@ def is_valid_url(url):
     # Basic URL validation - check for domain structure
     # This simple check ensures the URL has at least something.domain format
     has_domain_structure = (
-        re.search(r"[a-zA-Z0-9][\w.-]*\.[a-zA-Z]{2,}", url) is not None
+            re.search(r"[a-zA-Z0-9][\w.-]*\.[a-zA-Z]{2,}", url) is not None
     )
 
     return has_domain_structure
@@ -60,6 +60,23 @@ def is_valid_url(url):
 def is_discord_url(url):
     """Check if the URL is a Discord server URL."""
     return is_valid_url(url) and ("discord.gg" in url or "discord.com" in url)
+
+
+def extract_discord_invite_id(url):
+    """Extract the invite ID from a Discord URL regardless of format.
+
+    Handles both discord.gg/INVITEID and discord.com/invite/INVITEID formats.
+    """
+    if not is_discord_url(url):
+        return None
+
+    # Match patterns like discord.gg/INVITEID or discord.com/invite/INVITEID
+    pattern = r"(?:discord\.gg\/|discord\.com\/invite\/)([a-zA-Z0-9]+)"
+    match = re.search(pattern, url, re.IGNORECASE)
+
+    if match:
+        return match.group(1).lower()  # Return the ID in lowercase for consistent comparison
+    return None
 
 
 def process_database():
@@ -91,6 +108,7 @@ def process_database():
     new_urls = 0
     new_discord_servers = 0
     invalid_urls_skipped = 0
+    duplicate_invites_skipped = 0
 
     # Load existing data if files exist
     discord_ids_data = {}
@@ -135,24 +153,111 @@ def process_database():
             f"No existing Discord servers file found, will create new file: {discord_servers_file}"
         )
 
-    # Clean existing data - remove any invalid URLs that might have been previously added
+    # Convert old format to new format if needed
+    # The old format uses URLs as keys, the new format uses DISCORD_SERVER_X as keys
+    converted_discord_servers = {}
+
+    # Check if we need to convert the format (if any URL is used as a key)
+    needs_conversion = False
+    for key in discord_servers_data:
+        if is_discord_url(key):
+            needs_conversion = True
+            break
+
+    # Create a mapping of invite IDs to server keys for deduplication
+    invite_id_to_key_map = {}
+
+    if needs_conversion:
+        print("\nConverting Discord servers data to new format...")
+        server_index = 1
+
+        for key, data in discord_servers_data.items():
+            if is_discord_url(key):
+                # This is in the old format, extract the invite ID
+                invite_id = extract_discord_invite_id(key)
+
+                if invite_id and invite_id in invite_id_to_key_map:
+                    # Skip this duplicate
+                    duplicate_invites_skipped += 1
+                    continue
+
+                # Create new entry in the new format
+                new_key = f"DISCORD_SERVER_{server_index}"
+                converted_discord_servers[new_key] = {
+                    "INVITE_URL": key,
+                    "FOUND_ON": data.get("FOUND_ON", 0),
+                    "SERVER_ID": "UNKNOWN",
+                    "REASON": "UNKNOWN"
+                }
+
+                if invite_id:
+                    invite_id_to_key_map[invite_id] = new_key
+                server_index += 1
+            else:
+                # This is already in the new format, keep it but check for duplicates
+                if isinstance(data, dict) and "INVITE_URL" in data:
+                    invite_id = extract_discord_invite_id(data["INVITE_URL"])
+
+                    if invite_id:
+                        if invite_id in invite_id_to_key_map:
+                            # This is a duplicate, skip it
+                            duplicate_invites_skipped += 1
+                            continue
+                        invite_id_to_key_map[invite_id] = key
+
+                converted_discord_servers[key] = data
+
+        if duplicate_invites_skipped > 0:
+            print(f"Skipped {duplicate_invites_skipped} duplicate Discord invites during conversion")
+
+        print(f"Converted {len(converted_discord_servers)} Discord servers to new format")
+        discord_servers_data = converted_discord_servers
+    else:
+        # Build the invite ID to key map for deduplication
+        for key, data in discord_servers_data.items():
+            if isinstance(data, dict) and "INVITE_URL" in data:
+                invite_id = extract_discord_invite_id(data["INVITE_URL"])
+                if invite_id:
+                    invite_id_to_key_map[invite_id] = key
+
+    # Deduplicate existing entries
+    if not needs_conversion:  # Only if we didn't already deduplicate during conversion
+        print("\nChecking for duplicate Discord invites in existing data...")
+        keys_to_remove = set()
+
+        # First pass: identify duplicates
+        seen_invite_ids = set()
+        for key, data in discord_servers_data.items():
+            if isinstance(data, dict) and "INVITE_URL" in data:
+                invite_id = extract_discord_invite_id(data["INVITE_URL"])
+                if invite_id:
+                    if invite_id in seen_invite_ids:
+                        keys_to_remove.add(key)
+                        duplicate_invites_skipped += 1
+                    else:
+                        seen_invite_ids.add(invite_id)
+
+        # Second pass: remove duplicates
+        for key in keys_to_remove:
+            del discord_servers_data[key]
+
+        if duplicate_invites_skipped > 0:
+            print(f"Removed {duplicate_invites_skipped} duplicate Discord invites from existing data")
+            # Rebuild the mapping after deduplication
+            invite_id_to_key_map = {}
+            for key, data in discord_servers_data.items():
+                if isinstance(data, dict) and "INVITE_URL" in data:
+                    invite_id = extract_discord_invite_id(data["INVITE_URL"])
+                    if invite_id:
+                        invite_id_to_key_map[invite_id] = key
+
+    # Clean existing data - remove any invalid URLs
     urls_before_cleaning = len(urls_data)
-    discord_servers_before_cleaning = len(discord_servers_data)
-
     urls_data = {url: data for url, data in urls_data.items() if is_valid_url(url)}
-    discord_servers_data = {
-        url: data for url, data in discord_servers_data.items() if is_valid_url(url)
-    }
-
     cleaned_urls = urls_before_cleaning - len(urls_data)
-    cleaned_discord_servers = discord_servers_before_cleaning - len(
-        discord_servers_data
-    )
 
-    if cleaned_urls > 0 or cleaned_discord_servers > 0:
-        print(
-            f"\nCleaned up {cleaned_urls} invalid URLs and {cleaned_discord_servers} invalid Discord server URLs from existing data"
-        )
+    if cleaned_urls > 0:
+        print(f"\nCleaned up {cleaned_urls} invalid URLs from existing data")
 
     # Read and process the main database
     try:
@@ -166,6 +271,17 @@ def process_database():
 
     print("\nProcessing database...")
     processed_count = 0
+    duplicate_count = 0
+
+    # Find the next available server index
+    next_server_index = 1
+    for key in discord_servers_data.keys():
+        if key.startswith("DISCORD_SERVER_"):
+            try:
+                index = int(key.split("_")[2])
+                next_server_index = max(next_server_index, index + 1)
+            except (ValueError, IndexError):
+                pass
 
     # Process each account
     for account_key, account_info in accounts_data.items():
@@ -185,27 +301,39 @@ def process_database():
                     "TYPE": account_type,
                 }
                 new_discord_ids += 1
-                if (
-                    new_discord_ids % 10 == 0
-                ):  # Log less frequently to avoid excessive output
-                    print(
-                        f"  Added new Discord ID: {discord_id} (Type: {account_type})"
-                    )
+                if new_discord_ids % 10 == 0:
+                    print(f"  Added new Discord ID: {discord_id} (Type: {account_type})")
 
         # Process URLs
         final_url = account_info.get("FINAL_URL")
+        found_date = convert_date_to_epoch(account_info.get("FOUND_ON", ""))
 
         if final_url:
             if not is_valid_url(final_url):
                 invalid_urls_skipped += 1
                 continue
 
-            found_date = convert_date_to_epoch(account_info.get("FOUND_ON", ""))
-
             # Check if it's a Discord server URL
             if is_discord_url(final_url):
-                if final_url not in discord_servers_data:
-                    discord_servers_data[final_url] = {"FOUND_ON": found_date}
+                # Extract the invite ID to check for duplicates
+                invite_id = extract_discord_invite_id(final_url)
+
+                if invite_id:
+                    if invite_id in invite_id_to_key_map:
+                        # This is a duplicate, skip it
+                        duplicate_count += 1
+                        continue
+
+                    # Create a new entry in the new format
+                    new_key = f"DISCORD_SERVER_{next_server_index}"
+                    discord_servers_data[new_key] = {
+                        "INVITE_URL": final_url,
+                        "FOUND_ON": found_date,
+                        "SERVER_ID": "UNKNOWN",
+                        "REASON": "UNKNOWN"
+                    }
+                    invite_id_to_key_map[invite_id] = new_key
+                    next_server_index += 1
                     new_discord_servers += 1
                     if new_discord_servers % 10 == 0:
                         print(f"  Added new Discord server URL: {final_url}")
@@ -220,20 +348,35 @@ def process_database():
         # Also check SURFACE_URL for Discord links
         surface_url = account_info.get("SURFACE_URL")
         if surface_url and is_valid_url(surface_url) and is_discord_url(surface_url):
-            if surface_url not in discord_servers_data:
-                found_date = convert_date_to_epoch(account_info.get("FOUND_ON", ""))
-                discord_servers_data[surface_url] = {"FOUND_ON": found_date}
+            # Extract the invite ID to check for duplicates
+            invite_id = extract_discord_invite_id(surface_url)
+
+            if invite_id:
+                if invite_id in invite_id_to_key_map:
+                    # This is a duplicate, skip it
+                    duplicate_count += 1
+                    continue
+
+                # Create a new entry in the new format
+                new_key = f"DISCORD_SERVER_{next_server_index}"
+                discord_servers_data[new_key] = {
+                    "INVITE_URL": surface_url,
+                    "FOUND_ON": found_date,
+                    "SERVER_ID": "UNKNOWN",
+                    "REASON": "UNKNOWN"
+                }
+                invite_id_to_key_map[invite_id] = new_key
+                next_server_index += 1
                 new_discord_servers += 1
                 if new_discord_servers % 10 == 0:
-                    print(
-                        f"  Added new Discord server URL (from surface): {surface_url}"
-                    )
+                    print(f"  Added new Discord server URL (from surface): {surface_url}")
 
     print(f"\nProcessed all {processed_count} accounts")
     print(f"Found {new_discord_ids} new Discord IDs")
     print(f"Found {new_urls} new URLs")
     print(f"Found {new_discord_servers} new Discord server URLs")
     print(f"Skipped {invalid_urls_skipped} invalid URLs")
+    print(f"Skipped {duplicate_count} duplicate Discord invites")
 
     # Write the updated data to files
     print("\nWriting updated data to output files...")
@@ -248,18 +391,15 @@ def process_database():
 
     with open(discord_servers_file, "w") as f:
         json.dump(discord_servers_data, f, indent=4)
-        print(
-            f"Written {len(discord_servers_data)} Discord servers to {discord_servers_file}"
-        )
+        print(f"Written {len(discord_servers_data)} Discord servers to {discord_servers_file}")
 
     print("\n" + "=" * 80)
     print(f"PROCESS COMPLETE")
     print(f"Total Discord IDs: {len(discord_ids_data)} ({new_discord_ids} new)")
     print(f"Total URLs: {len(urls_data)} ({new_urls} new)")
-    print(
-        f"Total Discord servers: {len(discord_servers_data)} ({new_discord_servers} new)"
-    )
+    print(f"Total Discord servers: {len(discord_servers_data)} ({new_discord_servers} new)")
     print(f"Total invalid URLs skipped: {invalid_urls_skipped}")
+    print(f"Total duplicate Discord invites skipped: {duplicate_count + duplicate_invites_skipped}")
     print("=" * 80 + "\n")
 
 
