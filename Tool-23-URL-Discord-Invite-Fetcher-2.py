@@ -187,7 +187,11 @@ def process_database():
                     "INVITE_URL": key,
                     "FOUND_ON": data.get("FOUND_ON", 0),
                     "SERVER_ID": "UNKNOWN",
-                    "REASON": "UNKNOWN"
+                    "REASON": "UNKNOWN",
+                    "SERVER_STATUS": "UNKNOWN",
+                    "SERVER_STATUS_CHANGE": "UNKNOWN",
+                    "INVITE_STATUS": "UNKNOWN",
+                    "INVITE_STATUS_CHANGE": "UNKNOWN"
                 }
 
                 if invite_id:
@@ -330,7 +334,11 @@ def process_database():
                         "INVITE_URL": final_url,
                         "FOUND_ON": found_date,
                         "SERVER_ID": "UNKNOWN",
-                        "REASON": "UNKNOWN"
+                        "REASON": "UNKNOWN",
+                        "SERVER_STATUS": "UNKNOWN",
+                        "SERVER_STATUS_CHANGE": "UNKNOWN",
+                        "INVITE_STATUS": "UNKNOWN",
+                        "INVITE_STATUS_CHANGE": "UNKNOWN"
                     }
                     invite_id_to_key_map[invite_id] = new_key
                     next_server_index += 1
@@ -363,7 +371,11 @@ def process_database():
                     "INVITE_URL": surface_url,
                     "FOUND_ON": found_date,
                     "SERVER_ID": "UNKNOWN",
-                    "REASON": "UNKNOWN"
+                    "REASON": "UNKNOWN",
+                    "SERVER_STATUS": "UNKNOWN",
+                    "SERVER_STATUS_CHANGE": "UNKNOWN",
+                    "INVITE_STATUS": "UNKNOWN",
+                    "INVITE_STATUS_CHANGE": "UNKNOWN"
                 }
                 invite_id_to_key_map[invite_id] = new_key
                 next_server_index += 1

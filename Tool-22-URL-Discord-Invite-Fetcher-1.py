@@ -68,7 +68,11 @@ def convert_database_format(old_database):
             "INVITE_URL": url,
             "FOUND_ON": data.get("FOUND_ON", "UNKNOWN"),
             "SERVER_ID": data.get("SERVER_ID", "UNKNOWN"),
-            "REASON": data.get("REASON", "UNKNOWN")
+            "REASON": data.get("REASON", "UNKNOWN"),
+            "SERVER_STATUS": "UNKNOWN",
+            "SERVER_STATUS_CHANGE": "UNKNOWN",
+            "INVITE_STATUS": "UNKNOWN",
+            "INVITE_STATUS_CHANGE": "UNKNOWN"
         }
 
         new_database[f"DISCORD_SERVER_{count}"] = normalize_entry(new_entry)
@@ -164,7 +168,11 @@ def update_discord_servers_database():
             "INVITE_URL": url,
             "FOUND_ON": found_on,
             "SERVER_ID": server_id,
-            "REASON": reason
+            "REASON": reason,
+            "SERVER_STATUS": "UNKNOWN",
+            "SERVER_STATUS_CHANGE": "UNKNOWN",
+            "INVITE_STATUS": "UNKNOWN",
+            "INVITE_STATUS_CHANGE": "UNKNOWN"
         })
 
     # Track existing invite codes
