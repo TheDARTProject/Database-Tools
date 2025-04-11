@@ -18,7 +18,7 @@ def snowflake_to_timestamp(snowflake):
 def load_database(file_path):
     try:
         print(f"Loading database from {file_path}...")
-        with open(file_path, 'r') as file:
+        with open(file_path, "r") as file:
             return json.load(file)
     except (FileNotFoundError, json.JSONDecodeError):
         print(f"Database file not found or invalid. Creating new database.")
@@ -32,7 +32,7 @@ def save_database(file_path, data):
         os.makedirs(directory)
 
     print(f"Saving database to {file_path}...")
-    with open(file_path, 'w') as file:
+    with open(file_path, "w") as file:
         json.dump(data, file, indent=4)
     print(f"Database saved successfully.")
 
@@ -42,7 +42,12 @@ def normalize_entry(entry):
     for field in required_fields:
         if field not in entry:
             entry[field] = "UNKNOWN"
-    for field in ["SERVER_STATUS", "SERVER_STATUS_CHANGE", "INVITE_STATUS", "INVITE_STATUS_CHANGE"]:
+    for field in [
+        "SERVER_STATUS",
+        "SERVER_STATUS_CHANGE",
+        "INVITE_STATUS",
+        "INVITE_STATUS_CHANGE",
+    ]:
         entry.setdefault(field, "UNKNOWN")
     return entry
 
@@ -87,7 +92,7 @@ def convert_database_format(old_database):
             "SERVER_STATUS": "UNKNOWN",
             "SERVER_STATUS_CHANGE": "UNKNOWN",
             "INVITE_STATUS": "UNKNOWN",
-            "INVITE_STATUS_CHANGE": "UNKNOWN"
+            "INVITE_STATUS_CHANGE": "UNKNOWN",
         }
 
         new_database[f"DISCORD_SERVER_{count}"] = normalize_entry(new_entry)
@@ -115,7 +120,9 @@ def update_discord_servers_database():
 
     api_url = "https://api.phish.gg/servers/all"
     db_file_path = "../Database-Files/Filter-Database/Discord-Servers.json"
-    compromised_db_path = "../Database-Files/Main-Database/Compromised-Discord-Accounts.json"
+    compromised_db_path = (
+        "../Database-Files/Main-Database/Compromised-Discord-Accounts.json"
+    )
 
     database = load_database(db_file_path)
 
@@ -129,8 +136,7 @@ def update_discord_servers_database():
         database[key] = normalize_entry(entry)
 
     existing_invite_codes = {
-        extract_invite_code(entry.get("INVITE_URL", ""))
-        for entry in database.values()
+        extract_invite_code(entry.get("INVITE_URL", "")) for entry in database.values()
     }
 
     # Fetch data from API
@@ -146,7 +152,7 @@ def update_discord_servers_database():
 
     # Load compromised accounts (even if unused now)
     try:
-        with open(compromised_db_path, 'r') as file:
+        with open(compromised_db_path, "r") as file:
             compromised_accounts = json.load(file)
     except Exception as e:
         print(f"Error loading compromised accounts: {e}")
@@ -162,7 +168,9 @@ def update_discord_servers_database():
         if not raw_invite:
             continue
 
-        normalized_url = normalize_invite_url(f"https://discord.com/invite/{raw_invite}")
+        normalized_url = normalize_invite_url(
+            f"https://discord.com/invite/{raw_invite}"
+        )
         invite_code = extract_invite_code(normalized_url)
 
         if invite_code.lower() in existing_invite_codes:
@@ -178,7 +186,7 @@ def update_discord_servers_database():
             "SERVER_STATUS": "UNKNOWN",
             "SERVER_STATUS_CHANGE": "UNKNOWN",
             "INVITE_STATUS": "UNKNOWN",
-            "INVITE_STATUS_CHANGE": "UNKNOWN"
+            "INVITE_STATUS_CHANGE": "UNKNOWN",
         }
 
         database[f"DISCORD_SERVER_{len(database) + 1}"] = normalize_entry(new_entry)
