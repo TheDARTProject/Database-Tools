@@ -124,6 +124,11 @@ def update_discord_servers_database():
         "../Database-Files/Main-Database/Compromised-Discord-Accounts.json"
     )
 
+    # Define headers with User-Agent
+    headers = {
+        "User-Agent": "DART Project - Discord Analytics for Risks & Threats (https://github.com/TheDARTProject)"
+    }
+
     database = load_database(db_file_path)
 
     is_old_format = any(key.startswith("http") for key in database.keys())
@@ -139,10 +144,10 @@ def update_discord_servers_database():
         extract_invite_code(entry.get("INVITE_URL", "")) for entry in database.values()
     }
 
-    # Fetch data from API
-    print(f"Fetching data from {api_url}...")
+    # Fetch data from API with User-Agent header
+    print(f"Fetching data from {api_url} with custom User-Agent...")
     try:
-        response = requests.get(api_url)
+        response = requests.get(api_url, headers=headers)
         response.raise_for_status()
         servers = response.json()
         print(f"Successfully fetched data: {len(servers)} servers found.")
