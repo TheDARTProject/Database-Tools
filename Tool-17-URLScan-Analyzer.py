@@ -66,8 +66,8 @@ def get_final_url(url):
             response_json = submit_response.json()
             error_message = response_json.get("message", "")
             if (
-                    "DNS Error" in error_message
-                    or "could not resolve domain" in error_message.lower()
+                "DNS Error" in error_message
+                or "could not resolve domain" in error_message.lower()
             ):
                 log(f"Domain cannot be resolved. Marking as INACTIVE: {url}")
                 return url  # Return original URL, which will be marked as INACTIVE
@@ -145,7 +145,7 @@ def get_final_url(url):
 def process_account(account, details, request_timestamps):
     """Process a single account and update its URL details."""
     surface_url = details.get("SURFACE_URL", "")
-    if not surface_url:
+    if not surface_url or surface_url.lower() in ["no url sent", "no url detected"]:
         return False, request_timestamps
 
     if urlparse(surface_url).netloc in EXCLUDED_DOMAINS:
@@ -247,7 +247,9 @@ def main():
         print(f"There are {total_accounts} accounts in total.")
         while True:
             try:
-                start_number = int(input(f"Enter starting account number (1-{total_accounts}): "))
+                start_number = int(
+                    input(f"Enter starting account number (1-{total_accounts}): ")
+                )
                 if 1 <= start_number <= total_accounts:
                     start_index = start_number - 1
                     break
@@ -262,19 +264,25 @@ def main():
     total_excluded = 0
     total_active = 0
     total_inactive = 0
+    total_skipped_no_url = 0  # New counter for skipped cases
     request_timestamps = []  # Track when requests were made for rate limiting
 
     # Process each account entry with proper rate limiting
     for i, (account, details) in enumerate(items[start_index:], start=start_index):
         surface_url = details.get("SURFACE_URL", "")
-        if not surface_url:
+
+        # Skip if no URL or contains "No URL Sent" or "No URL Detected"
+        if not surface_url or surface_url.lower() in ["no url sent", "no url detected"]:
+            total_skipped_no_url += 1
             continue
 
         if urlparse(surface_url).netloc in EXCLUDED_DOMAINS:
             total_excluded += 1
             continue
 
-        is_active, request_timestamps = process_account(account, details, request_timestamps)
+        is_active, request_timestamps = process_account(
+            account, details, request_timestamps
+        )
 
         if is_active:
             total_active += 1
@@ -288,7 +296,13 @@ def main():
     log("Finished processing. All results have been saved to the JSON file.")
     log("Final Statistics:")
     excluded_plural = "s" if total_excluded != 1 else ""
-    log(f"- Total accounts skipped: {total_excluded} account{excluded_plural}")
+    log(
+        f"- Total accounts skipped (excluded domains): {total_excluded} account{excluded_plural}"
+    )
+    skipped_url_plural = "s" if total_skipped_no_url != 1 else ""
+    log(
+        f"- Total accounts skipped (no URL): {total_skipped_no_url} account{skipped_url_plural}"
+    )
     active_plural = "s" if total_active != 1 else ""
     log(f"- URLs flagged as ACTIVE: {total_active} account{active_plural}")
     inactive_plural = "s" if total_inactive != 1 else ""
