@@ -118,7 +118,7 @@ def update_readme(
 
 **Inspection File**: [`{inspection_filename}`](Inspection-Database/{inspection_filename})  
 - **Total Cases**: {case_count}
-- **{protected_members_line}**
+- {protected_members_line}
 {additional_lines}
 <!-- INSPECTION-END -->"""
 
