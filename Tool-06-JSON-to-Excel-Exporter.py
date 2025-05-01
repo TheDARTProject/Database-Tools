@@ -67,7 +67,7 @@ def json_to_excel():
         worksheet.append(row)
 
     # Save the workbook
-    output_path = "../Database-Files/Excel-Import-Export/ExporterSheet_Converted.xlsx"
+    output_path = "../Database-Files/Excel-Import-Export/ExporterSheet.xlsx"
     workbook.save(output_path)
     log(f"Excel file saved to {output_path}")
     log(f"Total accounts converted: {len(data)}")
