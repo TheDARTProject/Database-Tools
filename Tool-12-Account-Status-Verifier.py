@@ -84,6 +84,62 @@ def load_json_file(file_path):
         return {}
 
 
+def update_account_data(account_data, updated_username_or_status, expected_username):
+    """Update account data based on the current username status."""
+    changes_made = False
+
+    # Check if account is deleted
+    if updated_username_or_status and updated_username_or_status.startswith("deleted_user"):
+        # Update username if it changed
+        if account_data["USERNAME"] != updated_username_or_status:
+            account_data["USERNAME"] = updated_username_or_status
+            changes_made = True
+            log_message(f"Updated username to: {updated_username_or_status}")
+
+        # Update account status to DELETED
+        if account_data["ACCOUNT_STATUS"] != "DELETED":
+            account_data["ACCOUNT_STATUS"] = "DELETED"
+            changes_made = True
+            log_message("Updated ACCOUNT_STATUS to: DELETED")
+
+        # Update account type to Deleted Accounts
+        if account_data["ACCOUNT_TYPE"] != "Deleted Accounts":
+            account_data["ACCOUNT_TYPE"] = "Deleted Accounts"
+            changes_made = True
+            log_message("Updated ACCOUNT_TYPE to: Deleted Accounts")
+
+    # Check if account exists but username changed
+    elif updated_username_or_status and updated_username_or_status != expected_username:
+        # Update username
+        account_data["USERNAME"] = updated_username_or_status
+        changes_made = True
+        log_message(f"Updated username from {expected_username} to: {updated_username_or_status}")
+
+        # Update account status to OPERATIONAL (since it's not deleted)
+        if account_data["ACCOUNT_STATUS"] != "OPERATIONAL":
+            account_data["ACCOUNT_STATUS"] = "OPERATIONAL"
+            changes_made = True
+            log_message("Updated ACCOUNT_STATUS to: OPERATIONAL")
+
+        # Update account type back to original type if it was previously marked as deleted
+        if account_data["ACCOUNT_TYPE"] == "Deleted Accounts":
+            account_data["ACCOUNT_TYPE"] = "Burner Accounts"  # Default assumption
+            changes_made = True
+            log_message("Updated ACCOUNT_TYPE to: Burner Accounts")
+
+    # Check if account was previously marked as deleted but is now operational
+    elif not updated_username_or_status and account_data["USERNAME"].startswith("deleted_user"):
+        # This means the account exists now (API returned 200) but was previously deleted
+        # This is an edge case where a deleted account might have been restored
+        log_message(f"Account {account_data['DISCORD_ID']} appears to be restored from deleted state")
+
+    # Update LAST_CHECK timestamp
+    account_data["LAST_CHECK"] = datetime.now().isoformat()
+    changes_made = True
+
+    return changes_made
+
+
 def main():
     file_path = "../Database-Files/Edit-Database/Compromised-Discord-Accounts.json"
 
@@ -121,12 +177,21 @@ def main():
                 start_index = 0
 
         accounts_updated = 0
+        accounts_skipped = 0
         for index, (account_number, account_data) in enumerate(list(data.items())):
             if index < start_index:
                 continue  # Skip cases before the chosen start point
 
             discord_id = account_data["DISCORD_ID"]
             expected_username = account_data["USERNAME"]
+
+            # Skip accounts that are already marked as deleted
+            if expected_username.startswith("deleted_user"):
+                log_message(
+                    f"Skipping account {account_number}: Already deleted ({expected_username})"
+                )
+                accounts_skipped += 1
+                continue
 
             log_message(
                 f"Checking account {account_number}: {discord_id} ({expected_username})"
@@ -136,18 +201,13 @@ def main():
                 discord_id, expected_username
             )
 
-            # Only update if the username has changed
-            if (
-                updated_username_or_status
-                and updated_username_or_status != expected_username
-            ):
-                account_data["USERNAME"] = updated_username_or_status
+            # Update account data based on the current status
+            changes_made = update_account_data(
+                account_data, updated_username_or_status, expected_username
+            )
+
+            if changes_made:
                 accounts_updated += 1
-
-                # Always update the deleted status regardless of previous status
-                if updated_username_or_status.startswith("deleted_user"):
-                    account_data["ACCOUNT_STATUS"] = "DELETED"
-
                 # Live update the file after each change
                 update_json_file(file_path, data)
                 log_message(f"Live updated file for account {account_number}")
@@ -157,7 +217,8 @@ def main():
             # Sleep to respect the rate limit
             time.sleep(60 / DISCORD_USERS_RATE_LIMIT)
 
-        log_message(f"Scan complete. Updated {accounts_updated} accounts.")
+        log_message(
+            f"Scan complete. Updated {accounts_updated} accounts. Skipped {accounts_skipped} already deleted accounts.")
 
     except Exception as e:
         log_message(f"An error occurred: {e}")
