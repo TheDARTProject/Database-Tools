@@ -765,7 +765,7 @@ def save_data(data, filename, backup=False):
 
 
 # Main function to process the JSON file using a multithreaded approach
-def process_compromised_accounts(max_workers=10, batch_size=20, max_accounts=None):
+def process_compromised_accounts(max_workers=10, batch_size=20, max_accounts=None, start_from_case=None):
     logger.info("Starting to process compromised Discord accounts...")
     start_time = time.time()
 
@@ -809,6 +809,19 @@ def process_compromised_accounts(max_workers=10, batch_size=20, max_accounts=Non
 
     # Create a backup of the original data
     save_data(data, "Compromised-Discord-Accounts", backup=True)
+
+    # Filter accounts if start_from_case is specified
+    if start_from_case is not None:
+        filtered_data = {}
+        start_processing = False
+        for account_key, account_info in data.items():
+            case_num = int(account_info.get("CASE_NUMBER", "0"))
+            if case_num >= start_from_case:
+                start_processing = True
+            if start_processing:
+                filtered_data[account_key] = account_info
+        data = filtered_data
+        logger.info(f"Starting processing from case number {start_from_case}, {len(data)} accounts remaining")
 
     # Limit the number of accounts to process if specified
     if max_accounts and len(data) > max_accounts:
@@ -942,14 +955,24 @@ if __name__ == "__main__":
         default=None,
         help="Maximum number of accounts to process",
     )
+    parser.add_argument(
+        "--start-from-case",
+        type=int,
+        default=None,
+        help="Case number to start processing from",
+    )
 
     args = parser.parse_args()
 
     logger.info(
         f"Starting with {args.max_workers} workers, batch size {args.batch_size}"
     )
+    if args.start_from_case:
+        logger.info(f"Starting processing from case number {args.start_from_case}")
+
     process_compromised_accounts(
         max_workers=args.max_workers,
         batch_size=args.batch_size,
         max_accounts=args.max_accounts,
+        start_from_case=args.start_from_case,
     )
