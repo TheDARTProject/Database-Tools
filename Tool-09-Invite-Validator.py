@@ -18,7 +18,7 @@ def load_env():
                     env_vars[key] = value
     except FileNotFoundError:
         print(".env file not found. Using default values.")
-        env_vars["PROXY_URL"] = "https://api.codetabs.com/v1/proxy/?quest="
+        env_vars["PROXY_URL"] = ""
         env_vars["DISCORD_INVITE_RATE_LIMIT"] = "20"
     return env_vars
 
@@ -26,7 +26,7 @@ def load_env():
 env_vars = load_env()
 
 # Configuration
-PROXY_URL = env_vars.get("PROXY_URL", "https://api.codetabs.com/v1/proxy/?quest=")
+PROXY_URL = env_vars.get("")
 RATE_LIMIT = int(env_vars.get("DISCORD_INVITE_RATE_LIMIT", 20))
 JSON_FILE_PATH = os.path.join(
     os.path.dirname(__file__),
@@ -65,60 +65,37 @@ def check_invite(invite_code):
 
         if response.status_code == 200:
             try:
-                # Parse the proxy response
-                proxy_data = response.json()
+                data = response.json()
 
-                # Check if we're using a proxy service like allorigins.win
-                if 'contents' in proxy_data:
-                    # Extract the actual Discord API response from proxy wrapper
-                    actual_response = proxy_data['contents']
-
-                    # Parse the actual Discord response
-                    try:
-                        discord_data = json.loads(actual_response)
-                    except (json.JSONDecodeError, TypeError):
-                        # If contents is not JSON string, it might be already parsed
-                        discord_data = actual_response
-
-                    # Check HTTP status from proxy metadata if available
-                    if 'status' in proxy_data:
-                        status_info = proxy_data['status']
-                        actual_http_code = status_info.get('http_code', 200)
-
-                        # If Discord API returned 404 (Unknown Invite)
-                        if actual_http_code == 404:
-                            return False, f"https://discord.com/invite/{invite_code}"
-
-                    # Check Discord API response content
-                    if isinstance(discord_data, dict):
-                        # Check for "Unknown Invite" error
-                        if (discord_data.get("code") == 10006 and
-                                discord_data.get("message") == "Unknown Invite"):
-                            return False, f"https://discord.com/invite/{invite_code}"
-
-                        # If we got valid guild data, the invite is active
-                        if "guild" in discord_data:
-                            return True, f"https://discord.com/invite/{invite_code}"
-
-                    # If we can't determine status from content, assume inactive
-                    return False, f"https://discord.com/invite/{invite_code}"
-
-                else:
-                    # Direct API response (no proxy)
-                    data = proxy_data
-                    if (data.get("code") == 10006 and
-                            data.get("message") == "Unknown Invite"):
+                # Handle direct API response (no proxy)
+                if isinstance(data, dict):
+                    # Check for "Unknown Invite" error
+                    if (
+                        data.get("code") == 10006
+                        and data.get("message") == "Unknown Invite"
+                    ):
                         return False, f"https://discord.com/invite/{invite_code}"
 
-                    if "guild" in data:
+                    # Check for successful response with guild data (new format)
+                    if "guild" in data or "code" in data:
                         return True, f"https://discord.com/invite/{invite_code}"
 
-                    return False, f"https://discord.com/invite/{invite_code}"
+                    # Check for successful response with type field (alternative format)
+                    if "type" in data and isinstance(data["type"], int):
+                        return True, f"https://discord.com/invite/{invite_code}"
+
+                    # If none of the above but status is 200, assume active
+                    return True, f"https://discord.com/invite/{invite_code}"
+
+                # If response is not a dict but status is 200, assume active
+                return True, f"https://discord.com/invite/{invite_code}"
 
             except (json.JSONDecodeError, ValueError) as e:
                 if PRINT_RESPONSE:
                     print(f"Error parsing JSON response for {invite_code}: {str(e)}")
                 return False, f"https://discord.com/invite/{invite_code}"
+        elif response.status_code == 404:
+            return False, f"https://discord.com/invite/{invite_code}"
         else:
             return False, f"https://discord.com/invite/{invite_code}"
 
@@ -198,8 +175,8 @@ def process_accounts():
         surface_domain = account_data.get("SURFACE_URL_DOMAIN", "")
 
         if not (
-                surface_domain in ["discord.gg", "discord.com"]
-                and surface_url.startswith(("http://", "https://"))
+            surface_domain in ["discord.gg", "discord.com"]
+            and surface_url.startswith(("http://", "https://"))
         ):
             print(
                 f"[{i + 1}/{total_accounts}] Skipping {account_id}: Not a Discord invite URL"
