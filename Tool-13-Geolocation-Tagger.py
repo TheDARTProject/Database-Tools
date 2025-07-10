@@ -13,6 +13,7 @@ RATE_LIMIT = int(os.getenv("IPINFO_RATE_LIMIT", 60))  # Default to 60 if not spe
 
 # Define the input file
 INPUT_FILE = "../Database-Files/Edit-Database/Compromised-Discord-Accounts.json"
+CACHE_FILE = "domain_cache.json"  # File to store cached domain results
 IPINFO_URL = "https://ipinfo.io/"
 
 # Domains that should be automatically set to US
@@ -27,6 +28,19 @@ AUTO_US_DOMAINS = {
     "telegra.ph",
     "telegram.com",
 }
+
+
+def load_cache():
+    try:
+        with open(CACHE_FILE, "r", encoding="utf-8") as file:
+            return json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def save_cache(cache):
+    with open(CACHE_FILE, "w", encoding="utf-8") as file:
+        json.dump(cache, file, indent=4)
 
 
 def log(message):
@@ -45,10 +59,15 @@ def resolve_ip(domain):
         return None
 
 
-def get_geolocation(domain):
+def get_geolocation(domain, cache):
     if domain in AUTO_US_DOMAINS:
         log(f"Skipping API call for {domain}, setting to US")
         return "US"
+
+    # Check cache first
+    if domain in cache:
+        log(f"Using cached result for {domain}: {cache[domain]}")
+        return cache[domain]
 
     # Resolve the domain to an IP address
     ip_address = resolve_ip(domain)
@@ -63,6 +82,9 @@ def get_geolocation(domain):
         data = response.json()
         country = data.get("country", "N/A")
         log(f"Received response for {domain} (IP: {ip_address}): {country}")
+
+        # Update cache with new result
+        cache[domain] = country
         return country
     except requests.RequestException as e:
         log(f"Error querying {domain} (IP: {ip_address}): {e}")
@@ -96,7 +118,6 @@ def update_auto_us_domains(accounts):
     for account_id, details in accounts.items():
         final_url_domain = details.get("FINAL_URL_DOMAIN", "")
         if final_url_domain in AUTO_US_DOMAINS:
-            # Only update if we're actually processing this domain
             accounts[account_id]["SUSPECTED_REGION_OF_ORIGIN"] = "US"
             accounts[account_id]["LAST_CHECK"] = current_time
             updated_count += 1
@@ -111,6 +132,10 @@ def update_auto_us_domains(accounts):
 
 
 def update_compromised_accounts(start_from=0):
+    # Load cache at start
+    domain_cache = load_cache()
+    log(f"Loaded {len(domain_cache)} cached domain results")
+
     with open(INPUT_FILE, "r", encoding="utf-8") as file:
         accounts = json.load(file)
 
@@ -119,6 +144,7 @@ def update_compromised_accounts(start_from=0):
     unknown_count = 0
     skipped_count = 0
     request_counter = 0
+    cached_count = 0
 
     log(f"Found {total_cases} cases in {INPUT_FILE}")
 
@@ -133,40 +159,56 @@ def update_compromised_accounts(start_from=0):
         final_url_domain = details.get("FINAL_URL_DOMAIN", "")
 
         if final_url_domain and final_url_domain not in AUTO_US_DOMAINS:
-            current_time = datetime.utcnow().isoformat()
-            country = get_geolocation(final_url_domain)
-            accounts[account_id]["SUSPECTED_REGION_OF_ORIGIN"] = country
-            accounts[account_id]["LAST_CHECK"] = current_time
-
-            if country == "US":
-                skipped_count += 1
-            elif country == "N/A":
-                unknown_count += 1
+            # Check if we have a cached result for this domain
+            if final_url_domain in domain_cache:
+                cached_result = domain_cache[final_url_domain]
+                current_time = datetime.utcnow().isoformat()
+                accounts[account_id]["SUSPECTED_REGION_OF_ORIGIN"] = cached_result
+                accounts[account_id]["LAST_CHECK"] = current_time
+                cached_count += 1
+                log(
+                    f"Used cached result for {account_id}: {final_url_domain} -> {cached_result} | Last Check: {current_time}"
+                )
             else:
-                updated_count += 1
+                # No cached result, process normally
+                current_time = datetime.utcnow().isoformat()
+                country = get_geolocation(final_url_domain, domain_cache)
+                accounts[account_id]["SUSPECTED_REGION_OF_ORIGIN"] = country
+                accounts[account_id]["LAST_CHECK"] = current_time
 
-            log(
-                f"Updated {account_id}: {final_url_domain} -> {country} | Last Check: {current_time}"
-            )
+                if country == "US":
+                    skipped_count += 1
+                elif country == "N/A":
+                    unknown_count += 1
+                else:
+                    updated_count += 1
+
+                log(
+                    f"Updated {account_id}: {final_url_domain} -> {country} | Last Check: {current_time}"
+                )
+
+                # Only increment the request counter and apply rate limiting if we actually queried the API
+                if country != "N/A" and final_url_domain not in domain_cache:
+                    request_counter += 1
+                    if request_counter >= RATE_LIMIT:
+                        log(
+                            f"Reached API rate limit ({RATE_LIMIT} per minute), sleeping for 60 seconds..."
+                        )
+                        time.sleep(60)
+                        request_counter = 0
+                    else:
+                        time.sleep(60 / RATE_LIMIT)  # Distribute requests evenly
 
             # Save progress after each update
             with open(INPUT_FILE, "w", encoding="utf-8") as file:
                 json.dump(accounts, file, indent=4)
 
-            # Only increment the request counter and apply rate limiting if we actually queried the API
-            if country != "N/A":
-                request_counter += 1
-                if request_counter >= RATE_LIMIT:
-                    log(
-                        f"Reached API rate limit ({RATE_LIMIT} per minute), sleeping for 60 seconds..."
-                    )
-                    time.sleep(60)
-                    request_counter = 0
-                else:
-                    time.sleep(60 / RATE_LIMIT)  # Distribute requests evenly
+    # Save cache at the end
+    save_cache(domain_cache)
+    log(f"Saved {len(domain_cache)} domain results to cache")
 
     log(
-        f"Update complete: {updated_count} updated, {unknown_count} set to N/A, {skipped_count} auto-set to US"
+        f"Update complete: {updated_count} updated, {unknown_count} set to N/A, {skipped_count} auto-set to US, {cached_count} from cache"
     )
 
 
