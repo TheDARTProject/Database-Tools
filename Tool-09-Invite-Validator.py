@@ -18,7 +18,7 @@ def load_env():
                     env_vars[key] = value
     except FileNotFoundError:
         print(".env file not found. Using default values.")
-        env_vars["PROXY_URL"] = "https://api.allorigins.win/get?url="
+        env_vars["PROXY_URL"] = "https://api.codetabs.com/v1/proxy/?quest="
         env_vars["DISCORD_INVITE_RATE_LIMIT"] = "20"
     return env_vars
 
@@ -26,7 +26,7 @@ def load_env():
 env_vars = load_env()
 
 # Configuration
-PROXY_URL = env_vars.get("PROXY_URL", "https://api.allorigins.win/get?url=")
+PROXY_URL = env_vars.get("PROXY_URL", "https://api.codetabs.com/v1/proxy/?quest=")
 RATE_LIMIT = int(env_vars.get("DISCORD_INVITE_RATE_LIMIT", 20))
 JSON_FILE_PATH = os.path.join(
     os.path.dirname(__file__),
