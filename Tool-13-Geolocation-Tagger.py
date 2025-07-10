@@ -96,6 +96,7 @@ def update_auto_us_domains(accounts):
     for account_id, details in accounts.items():
         final_url_domain = details.get("FINAL_URL_DOMAIN", "")
         if final_url_domain in AUTO_US_DOMAINS:
+            # Only update if we're actually processing this domain
             accounts[account_id]["SUSPECTED_REGION_OF_ORIGIN"] = "US"
             accounts[account_id]["LAST_CHECK"] = current_time
             updated_count += 1
@@ -129,10 +130,10 @@ def update_compromised_accounts(start_from=0):
         if i < start_from:
             continue
 
-        current_time = datetime.utcnow().isoformat()
         final_url_domain = details.get("FINAL_URL_DOMAIN", "")
 
         if final_url_domain and final_url_domain not in AUTO_US_DOMAINS:
+            current_time = datetime.utcnow().isoformat()
             country = get_geolocation(final_url_domain)
             accounts[account_id]["SUSPECTED_REGION_OF_ORIGIN"] = country
             accounts[account_id]["LAST_CHECK"] = current_time
