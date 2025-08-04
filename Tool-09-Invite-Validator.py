@@ -45,7 +45,7 @@ def extract_invite_code(url):
     parsed = urlparse(url)
     if parsed.netloc == "discord.gg":
         return parsed.path.lstrip("/")
-    elif parsed.netloc == "discord.com":
+    elif parsed.netloc in ["discord.com", "discordapp.com"]:
         if parsed.path.startswith("/invite/"):
             return parsed.path.split("/")[2]
     return None
