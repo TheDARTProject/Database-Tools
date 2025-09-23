@@ -14,10 +14,19 @@ def load_servers_js(file_path):
         with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        # Extract invite URLs using regex
-        pattern = r"https://discord\.com/invite/[a-zA-Z0-9]+"
-        invites = re.findall(pattern, content)
-        return invites
+        pattern = r"https?://(?:discord(?:app)?\.com/invite|discord\.gg)/[A-Za-z0-9_-]+/?"
+        invites = re.findall(pattern, content, flags=re.IGNORECASE)
+
+        # Normalize (strip trailing slash) and remove duplicates while preserving order
+        seen = set()
+        result = []
+        for inv in invites:
+            inv = inv.rstrip('/')
+            if inv not in seen:
+                seen.add(inv)
+                result.append(inv)
+
+        return result
     except Exception as e:
         print(f"Error loading servers.js: {e}")
         return []
